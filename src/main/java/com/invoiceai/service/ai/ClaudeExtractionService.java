@@ -14,8 +14,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @ConditionalOnProperty(name = "app.ai.provider", havingValue = "claude")
@@ -40,35 +40,39 @@ public class ClaudeExtractionService implements AiExtractionService {
     @Override
     public ExtractionResult extract(byte[] fileBytes, String fileType, String fileName) {
         try {
-            String base64Data = Base64.getEncoder().encodeToString(fileBytes);
+            String base64Data = java.util.Base64.getEncoder().encodeToString(fileBytes);
             String mediaType = mapMediaType(fileType);
+            boolean isPdf = "application/pdf".equals(fileType);
 
-            String requestBody = objectMapper.writeValueAsString(new Object() {
-                public final String model2 = model;
-                public final int max_tokens = 4096;
-                public final Object[] messages = new Object[]{
-                    new Object() {
-                        public final String role = "user";
-                        public final Object[] content = new Object[]{
-                            new Object() {
-                                public final String type = "image";
-                                public final Object source = new Object() {
-                                    public final String type2 = "base64";
-                                    public final String media_type = mediaType;
-                                    public final String data = base64Data;
-                                };
-                            },
-                            new Object() {
-                                public final String type = "text";
-                                public final String text = EXTRACTION_PROMPT;
-                            }
-                        };
-                    }
-                };
-            });
+            // Build the file content block - PDFs use "document" type, images use "image" type
+            Map<String, Object> sourceBlock = Map.of(
+                    "type", "base64",
+                    "media_type", mediaType,
+                    "data", base64Data
+            );
 
-            // Fix field name - Jackson serialization workaround
-            requestBody = requestBody.replace("\"model2\"", "\"model\"").replace("\"type2\"", "\"type\"");
+            Map<String, Object> fileBlock = Map.of(
+                    "type", isPdf ? "document" : "image",
+                    "source", sourceBlock
+            );
+
+            Map<String, Object> textBlock = Map.of(
+                    "type", "text",
+                    "text", EXTRACTION_PROMPT
+            );
+
+            Map<String, Object> message = Map.of(
+                    "role", "user",
+                    "content", List.of(fileBlock, textBlock)
+            );
+
+            Map<String, Object> requestMap = Map.of(
+                    "model", model,
+                    "max_tokens", 4096,
+                    "messages", List.of(message)
+            );
+
+            String requestBody = objectMapper.writeValueAsString(requestMap);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.anthropic.com/v1/messages"))
@@ -147,7 +151,23 @@ public class ClaudeExtractionService implements AiExtractionService {
                 .build();
     }
 
-    private String textOrNull(JsonNode n, String f) { JsonNode v = n.get(f); return v != null && !v.isNull() ? v.asText() : null; }
-    private BigDecimal decimalOrNull(JsonNode n, String f) { JsonNode v = n.get(f); return v != null && !v.isNull() && v.isNumber() ? v.decimalValue() : null; }
-    private LocalDate dateOrNull(JsonNode n, String f) { String v = textOrNull(n, f); if (v == null) return null; try { return LocalDate.parse(v); } catch (Exception e) { return null; } }
+    private String textOrNull(JsonNode n, String f) {
+        JsonNode v = n.get(f);
+        return v != null && !v.isNull() ? v.asText() : null;
+    }
+
+    private BigDecimal decimalOrNull(JsonNode n, String f) {
+        JsonNode v = n.get(f);
+        return v != null && !v.isNull() && v.isNumber() ? v.decimalValue() : null;
+    }
+
+    private LocalDate dateOrNull(JsonNode n, String f) {
+        String v = textOrNull(n, f);
+        if (v == null) return null;
+        try {
+            return LocalDate.parse(v);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
