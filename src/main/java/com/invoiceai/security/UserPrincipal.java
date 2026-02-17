@@ -16,17 +16,19 @@ public class UserPrincipal implements UserDetails {
     private final UUID id;
     private final String email;
     private final String password;
+    private final User user;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserPrincipal(UUID id, String email, String password) {
-        this.id = id;
-        this.email = email;
-        this.password = password;
+    public UserPrincipal(User user) {
+        this.id = user.getId();
+        this.email = user.getEmail();
+        this.password = user.getPasswordHash();
+        this.user = user;
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     public static UserPrincipal from(User user) {
-        return new UserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash());
+        return new UserPrincipal(user);
     }
 
     @Override
