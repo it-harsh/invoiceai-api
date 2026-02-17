@@ -13,6 +13,8 @@ import com.invoiceai.model.User;
 import com.invoiceai.model.enums.InvoiceStatus;
 import com.invoiceai.repository.ExpenseRepository;
 import com.invoiceai.repository.InvoiceRepository;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.invoiceai.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,8 +79,14 @@ public class InvoiceService {
 
         invoice = invoiceRepository.save(invoice);
 
-        // Trigger async AI processing
-        invoiceProcessingService.processInvoiceAsync(invoice.getId());
+        // Trigger async AI processing AFTER transaction commits
+        UUID invoiceId = invoice.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                invoiceProcessingService.processInvoiceAsync(invoiceId);
+            }
+        });
 
         return toResponse(invoice, null);
     }
