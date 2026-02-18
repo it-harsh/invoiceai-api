@@ -34,4 +34,10 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID>, JpaSpec
     List<Object[]> topVendors(UUID orgId, LocalDate from, LocalDate to, Pageable pageable);
 
     Optional<Expense> findByInvoiceId(UUID invoiceId);
+
+    @Query("SELECT e FROM Expense e WHERE e.organization.id = :orgId ORDER BY e.date DESC, e.createdAt DESC")
+    List<Expense> findRecentByOrganizationId(UUID orgId, Pageable pageable);
+
+    @Query("SELECT COUNT(e) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'NEEDS_REVIEW'")
+    long countPendingReview(UUID orgId);
 }
