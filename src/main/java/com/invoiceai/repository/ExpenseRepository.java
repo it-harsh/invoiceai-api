@@ -35,7 +35,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID>, JpaSpec
 
     Optional<Expense> findByInvoiceId(UUID invoiceId);
 
-    @Query("SELECT e FROM Expense e WHERE e.organization.id = :orgId ORDER BY e.date DESC, e.createdAt DESC")
+    @Query("SELECT e FROM Expense e LEFT JOIN FETCH e.category WHERE e.organization.id = :orgId ORDER BY e.date DESC, e.createdAt DESC")
     List<Expense> findRecentByOrganizationId(UUID orgId, Pageable pageable);
 
     @Query("SELECT COUNT(e) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'NEEDS_REVIEW'")

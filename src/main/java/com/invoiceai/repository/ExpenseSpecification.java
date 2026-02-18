@@ -29,6 +29,11 @@ public final class ExpenseSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // Eagerly fetch category to avoid LazyInitializationException (e.g. CSV export)
+            if (query != null && !Long.class.equals(query.getResultType())) {
+                root.fetch("category", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
             predicates.add(cb.equal(root.get("organization").get("id"), orgId));
 
             if (status != null) {
