@@ -33,11 +33,11 @@ public class Budget {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal monthlyLimit;
 
-    @Column(nullable = false)
+    @Column(name = "alert_at_80", nullable = false)
     @Builder.Default
     private boolean alertAt80 = true;
 
-    @Column(nullable = false)
+    @Column(name = "alert_at_100", nullable = false)
     @Builder.Default
     private boolean alertAt100 = true;
 
