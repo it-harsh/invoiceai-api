@@ -1,6 +1,6 @@
 package com.invoiceai.model;
 
-import com.invoiceai.model.enums.ExpenseStatus;
+import com.invoiceai.model.enums.RecurringFrequency;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -9,18 +9,16 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "expenses")
+@Table(name = "recurring_expenses")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Expense {
+public class RecurringExpense {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,12 +29,8 @@ public class Expense {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invoice_id")
-    private Invoice invoice;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @JoinColumn(name = "source_expense_id")
+    private Expense sourceExpense;
 
     @Column(nullable = false)
     private String vendorName;
@@ -52,36 +46,24 @@ public class Expense {
     @Builder.Default
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    @Column(nullable = false)
-    private LocalDate date;
-
     private String description;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private RecurringFrequency frequency;
+
     @Column(nullable = false)
-    @Builder.Default
-    private ExpenseStatus status = ExpenseStatus.NEEDS_REVIEW;
+    private LocalDate nextDueDate;
 
-    @Column(precision = 3, scale = 2)
-    private BigDecimal aiConfidence;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewed_by")
-    private User reviewedBy;
-
-    private Instant reviewedAt;
+    private Instant lastCreatedAt;
 
     @Column(nullable = false)
     @Builder.Default
-    private boolean isDuplicate = false;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "duplicate_of_id")
-    private Expense duplicateOf;
-
-    @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<ExpenseLineItem> lineItems = new ArrayList<>();
+    private boolean isActive = true;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

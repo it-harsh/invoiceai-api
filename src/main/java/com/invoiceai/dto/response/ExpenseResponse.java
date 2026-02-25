@@ -24,7 +24,18 @@ public class ExpenseResponse {
     private BigDecimal aiConfidence;
     private InvoiceSummary invoice;
     private List<LineItemResponse> lineItems;
+    private boolean isDuplicate;
+    private UUID duplicateOfId;
+    private List<PolicyViolationSummary> policyViolations;
     private Instant createdAt;
+
+    @Getter
+    @Builder
+    public static class PolicyViolationSummary {
+        private UUID policyId;
+        private String policyName;
+        private String message;
+    }
 
     @Getter
     @Builder

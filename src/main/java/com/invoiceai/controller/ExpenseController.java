@@ -1,8 +1,11 @@
 package com.invoiceai.controller;
 
+import com.invoiceai.dto.request.BulkCreateExpenseRequest;
 import com.invoiceai.dto.request.CreateExpenseRequest;
+import com.invoiceai.dto.request.ExportToEmailRequest;
 import com.invoiceai.dto.request.RejectExpenseRequest;
 import com.invoiceai.dto.request.UpdateExpenseRequest;
+import com.invoiceai.dto.response.BulkCreateExpenseResponse;
 import com.invoiceai.dto.response.ExpenseResponse;
 import com.invoiceai.model.Expense;
 import com.invoiceai.model.enums.ExpenseStatus;
@@ -84,6 +87,24 @@ public class ExpenseController {
     public ResponseEntity<Void> deleteExpense(@PathVariable UUID id) {
         expenseService.deleteExpense(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<BulkCreateExpenseResponse> bulkCreateExpenses(
+            @Valid @RequestBody BulkCreateExpenseRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.bulkCreateExpenses(request));
+    }
+
+    @PostMapping("/export-email")
+    public ResponseEntity<Void> exportToEmail(
+            @RequestBody ExportToEmailRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        expenseService.exportToEmail(
+                principal.getUser(),
+                request.getStatus(), request.getCategoryId(), request.getVendorName(),
+                request.getDateFrom(), request.getDateTo(),
+                request.getAmountMin(), request.getAmountMax(), request.getSearch());
+        return ResponseEntity.accepted().build();
     }
 
     @GetMapping("/export")

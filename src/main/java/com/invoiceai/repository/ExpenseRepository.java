@@ -40,4 +40,25 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID>, JpaSpec
 
     @Query("SELECT COUNT(e) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'NEEDS_REVIEW'")
     long countPendingReview(UUID orgId);
+
+    // Duplicate detection
+    @Query("SELECT e FROM Expense e WHERE e.organization.id = :orgId AND e.vendorName = :vendorName AND e.amount = :amount AND e.date = :date")
+    List<Expense> findDuplicates(UUID orgId, String vendorName, BigDecimal amount, LocalDate date);
+
+    @Query("SELECT e FROM Expense e WHERE e.organization.id = :orgId AND e.vendorName = :vendorName AND e.amount = :amount AND e.date = :date AND e.id != :excludeId")
+    List<Expense> findDuplicatesExcluding(UUID orgId, String vendorName, BigDecimal amount, LocalDate date, UUID excludeId);
+
+    // Tax summary
+    @Query("SELECT e.category.name, COALESCE(SUM(e.taxAmount), 0) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'APPROVED' AND e.date BETWEEN :from AND :to GROUP BY e.category.name ORDER BY SUM(e.taxAmount) DESC")
+    List<Object[]> sumTaxByCategory(UUID orgId, LocalDate from, LocalDate to);
+
+    @Query("SELECT e.vendorName, COALESCE(SUM(e.taxAmount), 0) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'APPROVED' AND e.date BETWEEN :from AND :to GROUP BY e.vendorName ORDER BY SUM(e.taxAmount) DESC")
+    List<Object[]> sumTaxByVendor(UUID orgId, LocalDate from, LocalDate to);
+
+    @Query("SELECT COALESCE(SUM(e.taxAmount), 0) FROM Expense e WHERE e.organization.id = :orgId AND e.status = 'APPROVED' AND e.date BETWEEN :from AND :to")
+    BigDecimal sumTaxByDateRange(UUID orgId, LocalDate from, LocalDate to);
+
+    // Budget checking
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.organization.id = :orgId AND e.category.id = :categoryId AND e.status = 'APPROVED' AND e.date BETWEEN :from AND :to")
+    BigDecimal sumApprovedAmountByCategoryAndDateRange(UUID orgId, UUID categoryId, LocalDate from, LocalDate to);
 }

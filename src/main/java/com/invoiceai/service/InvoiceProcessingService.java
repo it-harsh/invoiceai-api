@@ -31,6 +31,8 @@ public class InvoiceProcessingService {
     private final CategoryRepository categoryRepository;
     private final FileStorageService fileStorageService;
     private final AiExtractionService aiExtractionService;
+    private final DuplicateDetectionService duplicateDetectionService;
+    private final VendorService vendorService;
 
     @Async
     @Transactional
@@ -90,7 +92,21 @@ public class InvoiceProcessingService {
                 expense.setLineItems(lineItems);
             }
 
+            // Duplicate detection — flag only
+            Expense duplicate = duplicateDetectionService.checkForDuplicate(
+                    invoice.getOrganization().getId(),
+                    expense.getVendorName(), expense.getAmount(), expense.getDate());
+            if (duplicate != null) {
+                expense.setDuplicate(true);
+                expense.setDuplicateOf(duplicate);
+            }
+
             expenseRepository.save(expense);
+
+            // Auto-maintain vendor directory
+            vendorService.upsertFromExpense(
+                    invoice.getOrganization().getId(),
+                    expense.getVendorName(), expense.getAmount(), expense.getDate(), category);
 
             invoice.setStatus(InvoiceStatus.EXTRACTED);
             invoice.setProcessingCompletedAt(Instant.now());
