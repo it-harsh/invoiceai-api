@@ -86,6 +86,52 @@ public class EmailNotificationService {
         }
     }
 
+    @Async
+    public void sendVerificationEmail(String toEmail, String fullName, String rawToken) {
+        String verifyUrl = baseUrl + "/verify-email?token=" + rawToken;
+        String html = buildVerificationEmailHtml(fullName, verifyUrl);
+        sendHtmlEmail(toEmail, "Verify your email — InvoiceAI", html);
+    }
+
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String fullName, String rawToken) {
+        String resetUrl = baseUrl + "/reset-password?token=" + rawToken;
+        String html = buildPasswordResetEmailHtml(fullName, resetUrl);
+        sendHtmlEmail(toEmail, "Reset your password — InvoiceAI", html);
+    }
+
+    private String buildVerificationEmailHtml(String fullName, String verifyUrl) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;'>");
+        sb.append("<h2 style='color: #3B82F6;'>Welcome to InvoiceAI!</h2>");
+        sb.append("<p>Hi ").append(fullName).append(",</p>");
+        sb.append("<p>Thanks for signing up. Please verify your email address to get started.</p>");
+        sb.append("<div style='margin: 32px 0;'>");
+        sb.append("<a href='").append(verifyUrl).append("' style='background: #3B82F6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;'>Verify Email Address</a>");
+        sb.append("</div>");
+        sb.append("<p style='color: #6B7280; font-size: 14px;'>This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>");
+        sb.append("<hr style='border: none; border-top: 1px solid #E5E7EB; margin: 24px 0;'>");
+        sb.append("<p style='color: #9CA3AF; font-size: 12px;'>InvoiceAI — AI-Powered Expense Tracking</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
+    private String buildPasswordResetEmailHtml(String fullName, String resetUrl) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;'>");
+        sb.append("<h2 style='color: #3B82F6;'>Password Reset Request</h2>");
+        sb.append("<p>Hi ").append(fullName).append(",</p>");
+        sb.append("<p>We received a request to reset your password. Click the button below to set a new password.</p>");
+        sb.append("<div style='margin: 32px 0;'>");
+        sb.append("<a href='").append(resetUrl).append("' style='background: #3B82F6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;'>Reset Password</a>");
+        sb.append("</div>");
+        sb.append("<p style='color: #6B7280; font-size: 14px;'>This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>");
+        sb.append("<hr style='border: none; border-top: 1px solid #E5E7EB; margin: 24px 0;'>");
+        sb.append("<p style='color: #9CA3AF; font-size: 12px;'>InvoiceAI — AI-Powered Expense Tracking</p>");
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
     private List<String> getOrgAdminEmails(UUID orgId) {
         return memberRepository.findByOrganizationIdAndRoleIn(orgId, List.of(MemberRole.OWNER, MemberRole.ADMIN))
                 .stream()

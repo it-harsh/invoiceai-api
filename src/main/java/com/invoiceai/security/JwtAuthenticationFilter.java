@@ -1,5 +1,6 @@
 package com.invoiceai.security;
 
+import com.invoiceai.model.User;
 import com.invoiceai.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,6 +15,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -27,17 +29,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                      FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
+        boolean blocked = false;
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             UUID userId = jwtTokenProvider.getUserIdFromToken(token);
 
-            userRepository.findById(userId).ifPresent(user -> {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
                 UserPrincipal principal = UserPrincipal.from(user);
                 var auth = new UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities());
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
-            });
+
+                // Block unverified users from non-auth, non-me endpoints
+                if (!user.isEmailVerified()) {
+                    String contextPath = request.getContextPath();
+                    String relativePath = request.getRequestURI().substring(contextPath.length());
+                    if (!relativePath.startsWith("/auth/") && !relativePath.equals("/users/me")) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write(
+                                "{\"error\":\"EMAIL_NOT_VERIFIED\",\"message\":\"Please verify your email address before accessing this resource.\"}");
+                        blocked = true;
+                    }
+                }
+            }
 
             // Set tenant context from header
             String orgId = request.getHeader("X-Organization-Id");
@@ -46,9 +64,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        try {
-            filterChain.doFilter(request, response);
-        } finally {
+        if (!blocked) {
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TenantContext.clear();
+            }
+        } else {
             TenantContext.clear();
         }
     }
